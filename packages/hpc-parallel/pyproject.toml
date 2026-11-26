@@ -1,0 +1,21 @@
+[project]
+name = "hpc-parallel"
+version = "0.1.0"
+description = "HPC parallelization and instrumentation package for GraphRAG."
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = []
+
+[project.scripts]
+hpc-graphrag = "hpc_parallel.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.27.0,<2.0.0"]
+build-backend = "hatchling.build"

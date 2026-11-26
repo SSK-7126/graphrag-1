@@ -7,6 +7,7 @@ import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from graphrag.index.run import hpc_hooks
 from graphrag.index.typing.error_handler import ErrorHandlerFn
 
 if TYPE_CHECKING:
@@ -121,6 +122,7 @@ class SummarizeExtractor:
         self, id: str | tuple[str, str] | list[str], descriptions: list[str]
     ):
         """Summarize descriptions using the LLM."""
+        hpc_hooks.record_active_request()
         response: LLMCompletionResponse = await self._model.completion_async(
             messages=self._summarization_prompt.format(**{
                 ENTITY_NAME_KEY: json.dumps(id, ensure_ascii=False),

@@ -13,6 +13,7 @@ from graphrag_llm.utils import (
     CompletionMessagesBuilder,
 )
 
+from graphrag.index.run import hpc_hooks
 from graphrag.index.typing.error_handler import ErrorHandlerFn
 from graphrag.index.utils.string import clean_str
 from graphrag.prompts.index.extract_graph import (
@@ -83,43 +84,55 @@ class GraphExtractor:
         )
 
     async def _process_document(self, text: str, entity_types: list[str]) -> str:
-        messages_builder = CompletionMessagesBuilder().add_user_message(
-            self._extraction_prompt.format(**{
-                INPUT_TEXT_KEY: text,
-                ENTITY_TYPES_KEY: ",".join(entity_types),
-            })
-        )
+        with hpc_hooks.profile_function(
+            "GraphExtractor._process_document",
+            input_count=1,
+            batch_count=1,
+        ) as span:
+            messages_builder = CompletionMessagesBuilder().add_user_message(
+                self._extraction_prompt.format(**{
+                    INPUT_TEXT_KEY: text,
+                    ENTITY_TYPES_KEY: ",".join(entity_types),
+                })
+            )
 
-        response: LLMCompletionResponse = await self._model.completion_async(
-            messages=messages_builder.build(),
-        )  # type: ignore
-        results = response.content
-        messages_builder.add_assistant_message(results)
+            span.increment_requests()
+            response: LLMCompletionResponse = await self._model.completion_async(
+                messages=messages_builder.build(),
+            )  # type: ignore
+            results = response.content
+            messages_builder.add_assistant_message(results)
 
-        # if gleanings are specified, enter a loop to extract more entities
-        # there are two exit criteria: (a) we hit the configured max, (b) the model says there are no more entities
-        if self._max_gleanings > 0:
-            for i in range(self._max_gleanings):
-                messages_builder.add_user_message(CONTINUE_PROMPT)
-                response: LLMCompletionResponse = await self._model.completion_async(
-                    messages=messages_builder.build(),
-                )  # type: ignore
-                response_text = response.content
-                messages_builder.add_assistant_message(response_text)
-                results += response_text
+            # if gleanings are specified, enter a loop to extract more entities
+            # there are two exit criteria: (a) we hit the configured max, (b) the model says there are no more entities
+            if self._max_gleanings > 0:
+                for i in range(self._max_gleanings):
+                    messages_builder.add_user_message(CONTINUE_PROMPT)
+                    span.increment_requests()
+                    response: LLMCompletionResponse = (
+                        await self._model.completion_async(
+                            messages=messages_builder.build(),
+                        )
+                    )  # type: ignore
+                    response_text = response.content
+                    messages_builder.add_assistant_message(response_text)
+                    results += response_text
 
-                # if this is the final glean, don't bother updating the continuation flag
-                if i >= self._max_gleanings - 1:
-                    break
+                    # if this is the final glean, don't bother updating the continuation flag
+                    if i >= self._max_gleanings - 1:
+                        break
 
-                messages_builder.add_user_message(LOOP_PROMPT)
-                response: LLMCompletionResponse = await self._model.completion_async(
-                    messages=messages_builder.build(),
-                )  # type: ignore
-                if response.content != "Y":
-                    break
+                    messages_builder.add_user_message(LOOP_PROMPT)
+                    span.increment_requests()
+                    response: LLMCompletionResponse = (
+                        await self._model.completion_async(
+                            messages=messages_builder.build(),
+                        )
+                    )  # type: ignore
+                    if response.content != "Y":
+                        break
 
-        return results
+            return results
 
     def _process_result(
         self,

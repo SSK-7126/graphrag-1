@@ -56,6 +56,7 @@ default=true
 
 [tool.uv.workspace]
 members = ["packages/*"]
+exclude = ["packages/hpc-parallel"]
 
 [tool.uv.sources]
 graphrag-chunking = { workspace = true }
@@ -250,6 +251,7 @@ include = [
     "packages/graphrag-storage/graphrag_storage", 
     "packages/graphrag-cache/graphrag_cache",
     "packages/graphrag-llm/graphrag_llm",
+    "packages/hpc-parallel/hpc_parallel",
     "tests"
 ]
 exclude = ["**/node_modules", "**/__pycache__"]

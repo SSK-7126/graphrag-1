@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
+from graphrag.index.run import hpc_hooks
 from graphrag.index.typing.error_handler import ErrorHandlerFn
 
 if TYPE_CHECKING:
@@ -73,27 +74,34 @@ class CommunityReportsExtractor:
 
     async def __call__(self, input_text: str):
         """Call method definition."""
-        output = None
-        try:
-            prompt = self._extraction_prompt.format(**{
-                INPUT_TEXT_KEY: input_text,
-                MAX_LENGTH_KEY: str(self._max_report_length),
-            })
-            response = await self._model.completion_async(
-                messages=prompt,
-                response_format=CommunityReportResponse,  # A model is required when using json mode
+        with hpc_hooks.profile_function(
+            "CommunityReportsExtractor.__call__",
+            input_count=1,
+            batch_count=1,
+            request_count=1,
+        ) as span:
+            output = None
+            try:
+                prompt = self._extraction_prompt.format(**{
+                    INPUT_TEXT_KEY: input_text,
+                    MAX_LENGTH_KEY: str(self._max_report_length),
+                })
+                response = await self._model.completion_async(
+                    messages=prompt,
+                    response_format=CommunityReportResponse,  # A model is required when using json mode
+                )
+
+                output = response.formatted_response  # type: ignore
+            except Exception as e:
+                span.increment_errors(error_type=type(e).__name__)
+                logger.exception("error generating community report")
+                self._on_error(e, traceback.format_exc(), None)
+
+            text_output = self._get_text_output(output) if output else ""
+            return CommunityReportsResult(
+                structured_output=output,
+                output=text_output,
             )
-
-            output = response.formatted_response  # type: ignore
-        except Exception as e:
-            logger.exception("error generating community report")
-            self._on_error(e, traceback.format_exc(), None)
-
-        text_output = self._get_text_output(output) if output else ""
-        return CommunityReportsResult(
-            structured_output=output,
-            output=text_output,
-        )
 
     def _get_text_output(self, report: CommunityReportResponse) -> str:
         report_sections = "\n\n".join(

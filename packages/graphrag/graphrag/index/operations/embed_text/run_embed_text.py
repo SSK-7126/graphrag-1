@@ -13,6 +13,7 @@ from graphrag_chunking.token_chunker import split_text_on_tokens
 from graphrag_llm.tokenizer import Tokenizer
 
 from graphrag.callbacks.workflow_callbacks import WorkflowCallbacks
+from graphrag.index.run import hpc_hooks
 from graphrag.index.utils.is_null import is_null
 from graphrag.logger.progress import ProgressTicker, progress_ticker
 
@@ -39,38 +40,47 @@ async def run_embed_text(
     num_threads: int,
 ) -> TextEmbeddingResult:
     """Run the Claim extraction chain."""
-    if is_null(input):
-        return TextEmbeddingResult(embeddings=None)
+    with hpc_hooks.profile_function(
+        "run_embed_text",
+        input_count=0 if is_null(input) else len(input),
+        configured_concurrency=num_threads,
+    ) as span:
+        if is_null(input):
+            return TextEmbeddingResult(embeddings=None)
 
-    semaphore: asyncio.Semaphore = asyncio.Semaphore(num_threads)
+        semaphore: asyncio.Semaphore = asyncio.Semaphore(num_threads)
 
-    # Break up the input texts. The sizes here indicate how many snippets are in each input text
-    texts, input_sizes = _prepare_embed_texts(input, tokenizer, batch_max_tokens)
-    text_batches = _create_text_batches(
-        texts,
-        tokenizer,
-        batch_size,
-        batch_max_tokens,
-    )
-    logger.info(
-        "embedding %d inputs via %d snippets using %d batches. max_batch_size=%d, batch_max_tokens=%d",
-        len(input),
-        len(texts),
-        len(text_batches),
-        batch_size,
-        batch_max_tokens,
-    )
-    ticker = progress_ticker(
-        callbacks.progress,
-        len(text_batches),
-        description="generate embeddings progress: ",
-    )
+        # Break up the input texts. The sizes here indicate how many snippets are in each input text
+        texts, input_sizes = _prepare_embed_texts(input, tokenizer, batch_max_tokens)
+        text_batches = _create_text_batches(
+            texts,
+            tokenizer,
+            batch_size,
+            batch_max_tokens,
+        )
+        span.set_counts(
+            batch_count=len(text_batches),
+            request_count=len(text_batches),
+        )
+        logger.info(
+            "embedding %d inputs via %d snippets using %d batches. max_batch_size=%d, batch_max_tokens=%d",
+            len(input),
+            len(texts),
+            len(text_batches),
+            batch_size,
+            batch_max_tokens,
+        )
+        ticker = progress_ticker(
+            callbacks.progress,
+            len(text_batches),
+            description="generate embeddings progress: ",
+        )
 
-    # Embed each chunk of snippets
-    embeddings = await _execute(model, text_batches, ticker, semaphore)
-    embeddings = _reconstitute_embeddings(embeddings, input_sizes)
+        # Embed each chunk of snippets
+        embeddings = await _execute(model, text_batches, ticker, semaphore)
+        embeddings = _reconstitute_embeddings(embeddings, input_sizes)
 
-    return TextEmbeddingResult(embeddings=embeddings)
+        return TextEmbeddingResult(embeddings=embeddings)
 
 
 async def _execute(
@@ -79,17 +89,30 @@ async def _execute(
     tick: ProgressTicker,
     semaphore: asyncio.Semaphore,
 ) -> list[list[float]]:
-    async def embed(chunk: list[str]):
-        async with semaphore:
-            embeddings_response = await model.embedding_async(input=chunk)
-            result = np.array(embeddings_response.embeddings)
-            tick(1)
-        return result
+    input_count = sum(len(chunk) for chunk in chunks)
+    batch_count = len(chunks)
+    configured_concurrency = getattr(semaphore, "_value", None)
 
-    futures = [embed(chunk) for chunk in chunks]
-    results = await asyncio.gather(*futures)
-    # merge results in a single list of lists (reduce the collect dimension)
-    return [item for sublist in results for item in sublist]
+    with hpc_hooks.profile_function(
+        "_execute",
+        input_count=input_count,
+        batch_count=batch_count,
+        request_count=batch_count,
+        configured_concurrency=configured_concurrency,
+    ) as span:
+
+        async def embed(chunk: list[str]):
+            async with semaphore:
+                with span.subtask():
+                    embeddings_response = await model.embedding_async(input=chunk)
+                    result = np.array(embeddings_response.embeddings)
+                tick(1)
+            return result
+
+        futures = [embed(chunk) for chunk in chunks]
+        results = await asyncio.gather(*futures)
+        # merge results in a single list of lists (reduce the collect dimension)
+        return [item for sublist in results for item in sublist]
 
 
 def _create_text_batches(

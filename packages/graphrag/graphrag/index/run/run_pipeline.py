@@ -18,6 +18,7 @@ from graphrag_storage.tables.table_provider_factory import create_table_provider
 
 from graphrag.callbacks.workflow_callbacks import WorkflowCallbacks
 from graphrag.config.models.graph_rag_config import GraphRagConfig
+from graphrag.index.run import hpc_hooks
 from graphrag.index.run.profiling import WorkflowProfiler
 from graphrag.index.run.utils import create_run_context
 from graphrag.index.typing.context import PipelineRunContext
@@ -132,7 +133,7 @@ async def _run_pipeline(
             last_workflow = name
             context.callbacks.workflow_start(name, None)
 
-            with WorkflowProfiler() as profiler:
+            with hpc_hooks.workflow_context(name), WorkflowProfiler() as profiler:
                 result = await workflow_function(config, context)
 
             context.callbacks.workflow_end(name, result)
@@ -155,6 +156,8 @@ async def _run_pipeline(
         yield PipelineRunResult(
             workflow=last_workflow, result=None, state=context.state, error=e
         )
+    finally:
+        hpc_hooks.flush_env_profiling()
 
 
 async def _dump_stats_json(context: PipelineRunContext) -> None:

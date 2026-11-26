@@ -15,6 +15,7 @@ import pandas as pd
 from graphrag.callbacks.noop_workflow_callbacks import NoopWorkflowCallbacks
 from graphrag.callbacks.workflow_callbacks import WorkflowCallbacks
 from graphrag.config.enums import AsyncType
+from graphrag.index.run import hpc_hooks
 from graphrag.logger.progress import progress_ticker
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ class ParallelizationError(ValueError):
     """Exception for invalid parallel processing."""
 
     def __init__(self, num_errors: int, example: str | None = None):
+        self.num_errors = num_errors
         msg = f"{num_errors} Errors occurred while running parallel transformation, could not complete!"
         if example:
             msg += f"\nExample error: {example}"
@@ -97,23 +99,38 @@ async def derive_from_rows_asyncio(
 
     This is useful for IO bound operations.
     """
+    row_count = len(input)
     semaphore = asyncio.Semaphore(num_threads or 4)
 
-    async def gather(execute: ExecuteFn[ItemType]) -> list[ItemType | None]:
-        async def execute_row_protected(
-            row: tuple[Hashable, pd.Series],
-        ) -> ItemType | None:
-            async with semaphore:
-                return await execute(row)
+    with hpc_hooks.profile_function(
+        "derive_from_rows_asyncio",
+        input_count=row_count,
+        batch_count=1 if row_count > 0 else 0,
+        request_count=row_count,
+        configured_concurrency=num_threads or 4,
+    ) as span:
 
-        tasks = [
-            asyncio.create_task(execute_row_protected(row)) for row in input.iterrows()
-        ]
-        return await asyncio.gather(*tasks)
+        async def gather(execute: ExecuteFn[ItemType]) -> list[ItemType | None]:
+            async def execute_row_protected(
+                row: tuple[Hashable, pd.Series],
+            ) -> ItemType | None:
+                async with semaphore:
+                    with span.subtask():
+                        return await execute(row)
 
-    return await _derive_from_rows_base(
-        input, transform, callbacks, gather, progress_msg
-    )
+            tasks = [
+                asyncio.create_task(execute_row_protected(row))
+                for row in input.iterrows()
+            ]
+            return await asyncio.gather(*tasks)
+
+        try:
+            return await _derive_from_rows_base(
+                input, transform, callbacks, gather, progress_msg
+            )
+        except ParallelizationError as exc:
+            span.set_counts(errors=exc.num_errors)
+            raise
 
 
 ItemType = TypeVar("ItemType")

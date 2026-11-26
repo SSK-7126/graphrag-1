@@ -16,6 +16,7 @@ from graphrag.index.operations.summarize_descriptions.description_summary_extrac
 from graphrag.index.operations.summarize_descriptions.typing import (
     SummarizedDescriptionResult,
 )
+from graphrag.index.run import hpc_hooks
 from graphrag.logger.progress import ProgressTicker, progress_ticker
 
 if TYPE_CHECKING:
@@ -35,84 +36,95 @@ async def summarize_descriptions(
     num_threads: int,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Summarize entity and relationship descriptions from an entity graph, using a language model."""
-
-    async def get_summarized(
-        nodes: pd.DataFrame, edges: pd.DataFrame, semaphore: asyncio.Semaphore
-    ):
-        ticker_length = len(nodes) + len(edges)
-
-        ticker = progress_ticker(
-            callbacks.progress,
-            ticker_length,
-            description="Summarize entity/relationship description progress: ",
-        )
-
-        node_futures = [
-            do_summarize_descriptions(
-                str(row.title),  # type: ignore
-                sorted(set(row.description)),  # type: ignore
-                ticker,
-                semaphore,
-            )
-            for row in nodes.itertuples(index=False)
-        ]
-
-        node_results = await asyncio.gather(*node_futures)
-
-        node_descriptions = [
-            {
-                "title": result.id,
-                "description": result.description,
-            }
-            for result in node_results
-        ]
-
-        edge_futures = [
-            do_summarize_descriptions(
-                (str(row.source), str(row.target)),  # type: ignore
-                sorted(set(row.description)),  # type: ignore
-                ticker,
-                semaphore,
-            )
-            for row in edges.itertuples(index=False)
-        ]
-
-        edge_results = await asyncio.gather(*edge_futures)
-
-        edge_descriptions = [
-            {
-                "source": result.id[0],
-                "target": result.id[1],
-                "description": result.description,
-            }
-            for result in edge_results
-        ]
-
-        entity_descriptions = pd.DataFrame(node_descriptions)
-        relationship_descriptions = pd.DataFrame(edge_descriptions)
-        return entity_descriptions, relationship_descriptions
-
-    async def do_summarize_descriptions(
-        id: str | tuple[str, str],
-        descriptions: list[str],
-        ticker: ProgressTicker,
-        semaphore: asyncio.Semaphore,
-    ):
-        async with semaphore:
-            results = await run_summarize_descriptions(
-                id,
-                descriptions,
-                model,
-                max_summary_length,
-                max_input_tokens,
-                prompt,
-            )
-            ticker(1)
-        return results
-
+    total_inputs = len(entities_df) + len(relationships_df)
+    batch_count = (1 if len(entities_df) > 0 else 0) + (
+        1 if len(relationships_df) > 0 else 0
+    )
     semaphore = asyncio.Semaphore(num_threads)
 
-    return await get_summarized(entities_df, relationships_df, semaphore)
+    with hpc_hooks.profile_function(
+        "summarize_descriptions",
+        input_count=total_inputs,
+        batch_count=batch_count,
+        configured_concurrency=num_threads,
+    ) as span:
+
+        async def do_summarize_descriptions(
+            id: str | tuple[str, str],
+            descriptions: list[str],
+            ticker: ProgressTicker,
+            sem: asyncio.Semaphore,
+        ):
+            async with sem:
+                with span.subtask():
+                    results = await run_summarize_descriptions(
+                        id,
+                        descriptions,
+                        model,
+                        max_summary_length,
+                        max_input_tokens,
+                        prompt,
+                    )
+                ticker(1)
+            return results
+
+        async def get_summarized(
+            nodes: pd.DataFrame, edges: pd.DataFrame, sem: asyncio.Semaphore
+        ):
+            ticker_length = len(nodes) + len(edges)
+
+            ticker = progress_ticker(
+                callbacks.progress,
+                ticker_length,
+                description="Summarize entity/relationship description progress: ",
+            )
+
+            node_futures = [
+                do_summarize_descriptions(
+                    str(row.title),  # type: ignore
+                    sorted(set(row.description)),  # type: ignore
+                    ticker,
+                    sem,
+                )
+                for row in nodes.itertuples(index=False)
+            ]
+
+            node_results = await asyncio.gather(*node_futures)
+
+            node_descriptions = [
+                {
+                    "title": result.id,
+                    "description": result.description,
+                }
+                for result in node_results
+            ]
+
+            edge_futures = [
+                do_summarize_descriptions(
+                    (str(row.source), str(row.target)),  # type: ignore
+                    sorted(set(row.description)),  # type: ignore
+                    ticker,
+                    sem,
+                )
+                for row in edges.itertuples(index=False)
+            ]
+
+            edge_results = await asyncio.gather(*edge_futures)
+
+            edge_descriptions = [
+                {
+                    "source": result.id[0],
+                    "target": result.id[1],
+                    "description": result.description,
+                }
+                for result in edge_results
+            ]
+
+            entity_descriptions = pd.DataFrame(node_descriptions)
+            relationship_descriptions = pd.DataFrame(edge_descriptions)
+            return entity_descriptions, relationship_descriptions
+
+        return await get_summarized(entities_df, relationships_df, semaphore)
 
 
 async def run_summarize_descriptions(
