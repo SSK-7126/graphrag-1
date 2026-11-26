@@ -1,8 +1,3 @@
-# Copyright (c) 2024 Microsoft Corporation.
-# Licensed under the MIT License
-
-"""Integrated CPU_HYBRID and MULTI_PLATFORM_HYBRID orchestrator."""
-
 from __future__ import annotations
 
 import asyncio
@@ -135,7 +130,6 @@ class HybridRuntimeManager:
             return self._dask_client
 
     async def __aenter__(self) -> Self:
-        """Enter async runtime manager."""
         return self
 
     async def __aexit__(

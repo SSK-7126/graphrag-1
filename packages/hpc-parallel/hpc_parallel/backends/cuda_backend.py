@@ -1,14 +1,3 @@
-# Copyright (c) 2024 Microsoft Corporation.
-# Licensed under the MIT License
-
-"""CUDA local compute backend with explicit blocks and threads-per-block configuration.
-
-Remote API-based LLM/embedding calls are network-bound and remain on
-``asyncio_optimized``; CUDA is applied only to local tensor/vector
-operations when Numba CUDA or PyTorch + a CUDA GPU are available and
-payload size justifies host-to-device transfer.
-"""
-
 from __future__ import annotations
 
 import importlib
@@ -24,8 +13,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CUDA_THREADS_PER_BLOCK = 256
-MAX_CUDA_THREADS_PER_BLOCK = 1024
+DEFAULT_CUDA_THREADS_PER_BLOCK = 1024
+MAX_CUDA_THREADS_PER_BLOCK = 1504
 
 
 @dataclass(frozen=True)
