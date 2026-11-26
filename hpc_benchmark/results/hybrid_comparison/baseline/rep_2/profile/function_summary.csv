@@ -1,0 +1,5 @@
+function_name,call_count,total_wall_clock_seconds,mean_wall_clock_seconds,min_wall_clock_seconds,max_wall_clock_seconds,total_input_count,total_output_count,total_request_count,total_batch_count,total_errors,total_retries,total_scheduling_overhead_seconds,max_concurrency_observed,configured_concurrency,platforms_used,max_memory_rss_mb
+CommunityReportsExtractor.__call__,1,0.036075500000151806,0.036075500000151806,0.036075500000151806,0.036075500000151806,1,0,1,1,0,0,0.0,1,4,['asyncio'],359.641
+GraphExtractor._process_document,12,1.1533882000076119,0.09611568333396765,0.058080999995581806,0.13742369999818038,12,0,24,12,0,0,0.0,4,4,['asyncio'],358.734
+derive_from_rows_asyncio,2,0.441180899986648,0.220590449993324,0.04963889998907689,0.3915419999975711,13,0,13,2,0,0,0.0,4,4,['asyncio'],359.641
+summarize_descriptions,1,0.011297999997623265,0.011297999997623265,0.011297999997623265,0.011297999997623265,3,0,0,2,0,0,0.0,1,4,['asyncio'],358.91

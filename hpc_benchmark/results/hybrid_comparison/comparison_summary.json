@@ -1,0 +1,74 @@
+{
+  "results": [
+    {
+      "execution_mode": "baseline",
+      "repetitions": 2,
+      "mean_wall_clock_seconds": 1.9229512000019895,
+      "min_wall_clock_seconds": 1.407286399989971,
+      "max_wall_clock_seconds": 2.438616000014008,
+      "workflows_completed": 7,
+      "errors": 0,
+      "speedup_vs_baseline": 1.0,
+      "speedup_vs_serial": 1.1144,
+      "peak_memory_rss_mb": 379.945,
+      "profile_dir": "hpc_benchmark\\results\\hybrid_comparison\\baseline\\rep_2\\profile",
+      "status": "ok"
+    },
+    {
+      "execution_mode": "serial",
+      "repetitions": 2,
+      "mean_wall_clock_seconds": 2.142916899996635,
+      "min_wall_clock_seconds": 2.1013510999910068,
+      "max_wall_clock_seconds": 2.1844827000022633,
+      "workflows_completed": 7,
+      "errors": 0,
+      "speedup_vs_baseline": 0.8974,
+      "speedup_vs_serial": 1.0,
+      "peak_memory_rss_mb": 360.703,
+      "profile_dir": "hpc_benchmark\\results\\hybrid_comparison\\serial\\rep_2\\profile",
+      "status": "ok"
+    },
+    {
+      "execution_mode": "asyncio_optimized",
+      "repetitions": 2,
+      "mean_wall_clock_seconds": 1.3581365499994718,
+      "min_wall_clock_seconds": 1.3364099000027636,
+      "max_wall_clock_seconds": 1.37986319999618,
+      "workflows_completed": 7,
+      "errors": 0,
+      "speedup_vs_baseline": 1.4159,
+      "speedup_vs_serial": 1.5778,
+      "peak_memory_rss_mb": 361.215,
+      "profile_dir": "hpc_benchmark\\results\\hybrid_comparison\\asyncio_optimized\\rep_2\\profile",
+      "status": "ok"
+    },
+    {
+      "execution_mode": "cpu_hybrid",
+      "repetitions": 2,
+      "mean_wall_clock_seconds": 1.4000739499970223,
+      "min_wall_clock_seconds": 1.3987861999921734,
+      "max_wall_clock_seconds": 1.4013617000018712,
+      "workflows_completed": 7,
+      "errors": 0,
+      "speedup_vs_baseline": 1.3735,
+      "speedup_vs_serial": 1.5306,
+      "peak_memory_rss_mb": 361.422,
+      "profile_dir": "hpc_benchmark\\results\\hybrid_comparison\\cpu_hybrid\\rep_2\\profile",
+      "status": "ok"
+    },
+    {
+      "execution_mode": "multi_platform_hybrid",
+      "repetitions": 2,
+      "mean_wall_clock_seconds": 1.3597202499950072,
+      "min_wall_clock_seconds": 1.2899877999880118,
+      "max_wall_clock_seconds": 1.4294527000020025,
+      "workflows_completed": 7,
+      "errors": 0,
+      "speedup_vs_baseline": 1.4142,
+      "speedup_vs_serial": 1.576,
+      "peak_memory_rss_mb": 361.449,
+      "profile_dir": "hpc_benchmark\\results\\hybrid_comparison\\multi_platform_hybrid\\rep_2\\profile",
+      "status": "ok"
+    }
+  ]
+}

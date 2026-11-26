@@ -1,0 +1,6 @@
+execution_mode,repetitions,mean_wall_clock_seconds,min_wall_clock_seconds,max_wall_clock_seconds,workflows_completed,errors,speedup_vs_baseline,speedup_vs_serial,peak_memory_rss_mb,profile_dir,status
+baseline,2,1.9229512000019895,1.407286399989971,2.438616000014008,7,0,1.0,1.1144,379.945,hpc_benchmark\results\hybrid_comparison\baseline\rep_2\profile,ok
+serial,2,2.142916899996635,2.1013510999910068,2.1844827000022633,7,0,0.8974,1.0,360.703,hpc_benchmark\results\hybrid_comparison\serial\rep_2\profile,ok
+asyncio_optimized,2,1.3581365499994718,1.3364099000027636,1.37986319999618,7,0,1.4159,1.5778,361.215,hpc_benchmark\results\hybrid_comparison\asyncio_optimized\rep_2\profile,ok
+cpu_hybrid,2,1.4000739499970223,1.3987861999921734,1.4013617000018712,7,0,1.3735,1.5306,361.422,hpc_benchmark\results\hybrid_comparison\cpu_hybrid\rep_2\profile,ok
+multi_platform_hybrid,2,1.3597202499950072,1.2899877999880118,1.4294527000020025,7,0,1.4142,1.576,361.449,hpc_benchmark\results\hybrid_comparison\multi_platform_hybrid\rep_2\profile,ok
