@@ -645,6 +645,8 @@ def make_hybrid_generate_text_embeddings(
                             raw_embeddings,
                             sizes,
                             min_elements=hpc_config.cuda_min_elements,
+                            threads_per_block=hpc_config.cuda_threads_per_block,
+                            blocks_per_grid=hpc_config.cuda_blocks_per_grid,
                         )
                     else:
                         reconstituted = reconstitute_embeddings_cuda(

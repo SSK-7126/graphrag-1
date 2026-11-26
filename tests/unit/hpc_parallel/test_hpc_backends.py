@@ -38,6 +38,7 @@ from hpc_parallel.backends.asyncio_ops import (
     summarize_descriptions_concurrent,
 )
 from hpc_parallel.backends.cuda_backend import (
+    compute_cuda_launch_config,
     detect_cuda_device,
     ensure_cuda_ready,
     reconstitute_embeddings_cuda,
@@ -486,6 +487,20 @@ async def test_cuda_backend_detection_fallback_and_reconstitution(
         input_documents=docs,
     )
     assert all(o.error is None for o in outputs)
+
+    # Verify explicit CUDA launch geometry calculation
+    assert compute_cuda_launch_config(3072, threads_per_block=256) == (12, 256)
+    assert compute_cuda_launch_config(1536, threads_per_block=128) == (12, 128)
+    assert compute_cuda_launch_config(
+        3072, threads_per_block=256, blocks_per_grid=16
+    ) == (
+        16,
+        256,
+    )
+    with pytest.raises(ValueError, match="threads_per_block"):
+        compute_cuda_launch_config(3072, threads_per_block=0)
+    with pytest.raises(ValueError, match="threads_per_block"):
+        compute_cuda_launch_config(3072, threads_per_block=2048)
 
     # Verify reconstitute_embeddings_cuda matches baseline numerically
     raw = [[3.0, 4.0], [1.0, 0.0], [0.0, 1.0], [2.0, 2.0]]

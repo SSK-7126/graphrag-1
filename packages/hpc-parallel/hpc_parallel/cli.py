@@ -111,6 +111,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Force Ray/Dask execution even below small-workload thresholds.",
     )
     index_parser.add_argument(
+        "--cuda-threads-per-block",
+        type=int,
+        default=256,
+        help="CUDA kernel threads per block (1-1024, default 256).",
+    )
+    index_parser.add_argument(
+        "--cuda-blocks",
+        type=int,
+        default=None,
+        help="Optional explicit CUDA grid blocks (auto-computed if omitted).",
+    )
+    index_parser.add_argument(
         "--no-fallback",
         action="store_true",
         default=False,
@@ -155,6 +167,8 @@ def main(argv: list[str] | None = None) -> int:
             dataframe_min_rows=args.dataframe_min_rows,
             cpu_workers=args.cpu_workers,
             force_distributed=args.force_distributed,
+            cuda_threads_per_block=args.cuda_threads_per_block,
+            cuda_blocks_per_grid=args.cuda_blocks,
             cuda_fallback_to_cpu=not args.no_fallback,
             allow_platform_fallback=not args.no_fallback,
         )

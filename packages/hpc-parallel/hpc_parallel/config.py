@@ -108,6 +108,12 @@ class HPCParallelConfig:
     cuda_min_elements: int = 4096
     """Minimum vector elements before offloading local post-processing to CUDA."""
 
+    cuda_threads_per_block: int = 256
+    """CUDA kernel threads per block (typically 128, 256, or 512; max 1024)."""
+
+    cuda_blocks_per_grid: int | None = None
+    """Optional explicit CUDA grid blocks; computed as ceil(n / threads_per_block) when None."""
+
     cuda_fallback_to_cpu: bool = True
     """If True, fall back to CPU when no CUDA device is available."""
 
